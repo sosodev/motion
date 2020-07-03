@@ -4,6 +4,31 @@ require "motion"
 
 module Motion
   class ComponentConnection
+    def self.dump(instance)
+      return unless instance
+
+      Base64.encode64(
+        Marshal.dump(
+          instance.dup.tap do |new_instance|
+            new_instance.remove_instance_variable :@log_helper
+          end
+        )
+      )
+    end
+
+    def self.load(dumped, log_helper: LogHelper.new)
+      return unless dumped
+
+      instance = Marshal.load(Base64.decode64(dumped))
+      log_helper = log_helper.for_component(component)
+
+      instance.instance_exec do
+        @log_helper = log_helper
+      end
+
+      instance
+    end
+
     def self.from_state(
       state,
       serializer: Motion.serializer,

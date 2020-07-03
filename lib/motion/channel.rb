@@ -20,7 +20,24 @@ module Motion
       ACTION_METHODS
     end
 
-    attr_reader :component_connection
+    def self.any_cable?
+      defined?(AnyCable::Rails) && AnyCable::Rails.enabled?
+    end
+
+    def any_cable?
+      self.class.any_cable?
+    end
+
+    state_attr_accessor :anycable_state if any_cable?
+
+    def component_connection
+      return @component_connection if defined?(@component_connection)
+
+      @component_connection =
+        if any_cable?
+          ComponentConnection.load(anycable_state, log_helper: log_helper)
+        end
+    end
 
     def subscribed
       state, client_version = params.values_at("state", "version")
@@ -73,6 +90,10 @@ module Motion
 
       component_connection.if_render_required do |component|
         transmit(renderer.render(component))
+      end
+
+      if any_cable?
+        self.anycable_state = ComponentConnection.dump(component_connection)
       end
     end
 
